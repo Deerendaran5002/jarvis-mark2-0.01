@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>J.A.R.V.I.S. // MARK II Cybernetic HUD</title>
+  <style>
+    :root {
+      --cyan: #00f0ff;
+      --blue-glow: #0088ff;
+      --teal-core: #00e5cc;
+      --cyan-dim: rgba(0, 240, 255, 0.24);
+      --amber: #ff9900;
+      --crimson: #ff3344;
+      --emerald: #00ffaa;
+      --panel: rgba(5, 14, 26, 0.84);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'SF Mono', 'Menlo', 'Monaco', monospace; }
+    body {
+      background: radial-gradient(circle at center, #061326 0%, #010307 75%, #000000 100%);
+      color: #d8f8ff;
+      height: 100vh;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: 1fr 78px;
+      padding: 14px;
+      gap: 12px;
+    }
+    .main-grid {
+      display: grid;
+      grid-template-columns: 310px 1fr 420px;
+      gap: 14px;
+      height: 100%;
+      overflow: hidden;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--cyan-dim);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 0 28px rgba(0, 240, 255, 0.06), inset 0 0 15px rgba(0, 240, 255, 0.03);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow: hidden;
+    }
+    .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2.2px;
+      color: var(--cyan);
+      border-bottom: 1px solid var(--cyan-dim);
+      padding-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(0, 255, 170, 0.15);
+      color: var(--emerald);
+      border: 1px solid var(--emerald);
+      font-weight: 700;
+    }
+    .weather-box { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+    .temp { font-size: 36px; font-weight: 800; color: #fff; text-shadow: 0 0 12px var(--cyan); }
+    .stat-row { font-size: 13px; margin-top: 8px; font-weight: 600; }
+    .bar-bg { width: 100%; height: 7px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 6px; overflow: hidden; }
+    .bar-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--emerald)); width: 78%; }
+
+    /* CENTER MARK II STAGE (ENLARGED) */
+    .center-stage {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px 14px;
+      background: radial-gradient(circle at center, rgba(0, 140, 255, 0.1) 0%, rgba(1, 4, 10, 0.96) 74%);
+    }
+    .reactor-wrap {
+      position: relative;
+      width: min(63vh, 580px);
+      height: min(63vh, 580px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: auto;
+    }
+    canvas#mark2Canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .vocal-box {
+      width: 100%;
+      border: 1px solid var(--cyan-dim);
+      background: rgba(3, 12, 24, 0.9);
+      border-radius: 10px;
+      padding: 12px 18px;
+      text-align: center;
+      z-index: 2;
+    }
+    .vocal-title { font-size: 12px; font-weight: 700; letter-spacing: 2.5px; color: var(--cyan); margin-bottom: 6px; }
+    .vocal-text { font-size: 16px; font-weight: 600; color: #fff; line-height: 1.45; }
+
+    .log-stream {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-right: 4px;
+      font-size: 15px;
+    }
+    .msg-user { color: var(--amber); font-weight: 700; font-size: 15px; }
+    .msg-jarvis {
+      background: rgba(0, 240, 255, 0.08);
+      border-left: 3px solid var(--cyan);
+      padding: 10px 12px;
+      border-radius: 6px;
+      color: #e2fbff;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    .quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .q-btn {
+      background: rgba(0, 240, 255, 0.09);
+      border: 1px solid var(--cyan-dim);
+      color: #c9f9ff;
+      padding: 9px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .q-btn:hover { background: rgba(0, 240, 255, 0.24); border-color: var(--cyan); }
+
+    .command-bar {
+      display: flex;
+      align-items: center;
+      background: rgba(4, 16, 32, 0.94);
+      border: 1.5px solid var(--cyan);
+      border-radius: 10px;
+      padding: 0 18px;
+      box-shadow: 0 0 24px rgba(0, 240, 255, 0.22);
+      gap: 14px;
+    }
+    .prompt-tag { color: var(--cyan); font-weight: 800; font-size: 16px; white-space: nowrap; }
+    #cmdInput { flex: 1; background: transparent; border: none; outline: none; color: #fff; font-size: 17px; height: 100%; }
+    #execBtn {
+      background: var(--cyan);
+      color: #02101f;
+      border: none;
+      padding: 12px 22px;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <div class="main-grid">
+    <!-- LEFT TELEMETRY -->
+    <div class="panel">
+      <div class="panel-title"><span>ATMOSPHERIC SCAN</span><span class="badge">LIVE</span></div>
+      <div class="weather-box">
+        <div>
+          <div class="temp" id="wxTemp">24°C</div>
+          <div style="font-size:15px;font-weight:600;color:#9adce8;margin-top:2px" id="wxDesc">Overcast</div>
+          <div style="font-size:13px;color:#5ca4b5">Coimbatore</div>
+        </div>
+        <div style="font-size:38px">🛰️</div>
+      </div>
+
+      <div class="panel-title" style="margin-top:8px"><span>OWNER & MEMORY CORE</span><span class="badge">LOCKED</span></div>
+      <div style="font-size:14px;color:#b8f4ff;line-height:1.7">
+        OWNER: <strong style="color:var(--emerald);font-size:15px" id="ownerName">Deerendaran</strong><br>
+        MAC BRIDGE: <span id="bridgeStatus" style="color:var(--amber);font-weight:700">Browser Mode</span>
+      </div>
+
+      <div class="panel-title" style="margin-top:8px"><span>MACBOOK-NEO TELEMETRY</span><span class="badge">MARK II</span></div>
+      <div class="stat-row">
+        <div style="display:flex;justify-content:space-between"><span>NEURAL ENGINE LOAD</span><span>78%</span></div>
+        <div class="bar-bg"><div class="bar-fill" style="width:78%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div style="display:flex;justify-content:space-between"><span>MEMORY ALLOCATION</span><span>42%</span></div>
+        <div class="bar-bg"><div class="bar-fill" style="width:42%"></div></div>
+      </div>
+
+      <div style="margin-top:auto">
+        <div class="panel-title"><span>DIRECT SUBROUTINES</span></div>
+        <div class="quick-grid" style="margin-top:8px">
+          <button class="q-btn" onclick="runCmd('who is your owner')">👑 Owner Info</button>
+          <button class="q-btn" onclick="runCmd('tomorrow date')">📅 Tomorrow Date</button>
+          <button class="q-btn" onclick="runCmd('clear')">🧹 Clear Log</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER MARK II HUD -->
+    <div class="panel center-stage">
+      <div class="reactor-wrap">
+        <canvas id="mark2Canvas" width="1040" height="1040"></canvas>
+      </div>
+      <div class="vocal-box">
+        <div class="vocal-title">● LIVE VOCAL SYNTHESIS OUTPUT ●</div>
+        <div class="vocal-text" id="vocalOut">"All systems online, Deerendaran. How can I help?"</div>
+      </div>
+    </div>
+
+    <!-- RIGHT TERMINAL LOG -->
+    <div class="panel">
+      <div class="panel-title"><span>COMMAND & NEURAL STREAM</span><span class="badge">ONLINE</span></div>
+      <div class="log-stream" id="logStream"></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM INPUT -->
+  <div class="command-bar">
+    <span class="prompt-tag">&gt; YOU:</span>
+    <input id="cmdInput" type="text" placeholder="Type a command (e.g. 'who is your owner', 'tomorrow date', 'clear')..." autofocus />
+    <button id="execBtn" onclick="submitInput()">EXECUTE ↵</button>
+  </div>
+
+  <script>
+    const logStream = document.getElementById('logStream');
+    const vocalOut = document.getElementById('vocalOut');
+    const cmdInput = document.getElementById('cmdInput');
+    const bridgeStatus = document.getElementById('bridgeStatus');
+
+    let jarvisMemory = JSON.parse(localStorage.getItem('jarvis_memory') || '{"owner": "Deerendaran", "notes": []}');
+    document.getElementById('ownerName').textContent = jarvisMemory.owner;
+
+    let aiMode = 'standby'; // standby | thinking | speaking
+
+    // --- ENLARGED J.A.R.V.I.S. MARK II CANVAS ENGINE ---
+    const canvas = document.getElementById('mark2Canvas');
+    const ctx = canvas.getContext('2d');
+    let t = 0;
+
+    const dotAngles = [];
+    for (let i = 0; i < 72; i++) {
+      const base = Math.sin(i * 0.35) * 0.5 + 0.5;
+      dotAngles.push(Math.floor(base * 5) + 1);
+    }
+
+    function drawMark2HUD() {
+      ctx.clearRect(0, 0, 1040, 1040);
+      const cx = 520, cy = 520;
+      const speed = aiMode === 'speaking' ? 2.6 : (aiMode === 'thinking' ? 3.5 : 1.0);
+      t += 0.008 * speed;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(1.18, 1.18);
+
+      const bgGrad = ctx.createRadialGradient(0, 0, 45, 0, 0, 430);
+      bgGrad.addColorStop(0, 'rgba(0, 230, 215, 0.28)');
+      bgGrad.addColorStop(0.4, 'rgba(0, 120, 255, 0.18)');
+      bgGrad.addColorStop(0.75, 'rgba(5, 20, 45, 0.08)');
+      bgGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = bgGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, 430, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 1. OUTERMOST COMPASS RING
+      ctx.save();
+      ctx.rotate(t * 0.18);
+      ctx.strokeStyle = 'rgba(200, 230, 255, 0.26)';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.arc(0, 0, 420, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(240, 250, 255, 0.9)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, 392, -2.85, -1.65);
+      ctx.stroke();
+
+      ctx.lineWidth = 9;
+      ctx.strokeStyle = 'rgba(220, 235, 250, 0.7)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 382, -2.15, -1.72);
+      ctx.stroke();
+
+      for (let i = 0; i < 120; i++) {
+        const ang = (i / 120) * Math.PI * 2;
+        const len = i % 10 === 0 ? 15 : (i % 5 === 0 ? 9 : 4);
+        ctx.strokeStyle = i % 10 === 0 ? 'rgba(255,255,255,0.9)' : 'rgba(180,220,255,0.34)';
+        ctx.lineWidth = i % 10 === 0 ? 2.2 : 1.2;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(ang) * 392, Math.sin(ang) * 392);
+        ctx.lineTo(Math.cos(ang) * (392 - len), Math.sin(ang) * (392 - len));
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 2. TELEMETRY RING
+      ctx.save();
+      ctx.rotate(-t * 0.28);
+      for (let i = 0; i < 36; i++) {
+        const a = (i / 36) * Math.PI * 2;
+        if (i % 6 === 0 || i % 7 === 0) {
+          ctx.strokeStyle = (i % 12 === 0) ? 'rgba(255, 55, 65, 0.9)' : 'rgba(230, 245, 255, 0.8)';
+          ctx.lineWidth = 11;
+          ctx.beginPath();
+          ctx.arc(0, 0, 342, a, a + 0.048);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      // 3. EQUALIZER DOT MATRIX RING
+      ctx.save();
+      ctx.rotate(t * 0.35);
+      for (let i = 0; i < 72; i++) {
+        const a = (i / 72) * Math.PI * 2;
+        let layers = dotAngles[i];
+        if (aiMode === 'speaking') {
+          layers = Math.floor((Math.sin(t * 14 + i * 0.7) * 0.5 + 0.5) * 6) + 1;
+        } else if (aiMode === 'thinking') {
+          layers = Math.floor((Math.sin(t * 20 + i) * 0.5 + 0.5) * 5) + 1;
+        }
+        for (let d = 0; d < layers; d++) {
+          const rad = 240 + d * 11.5;
+          const x = Math.cos(a) * rad;
+          const y = Math.sin(a) * rad;
+          ctx.fillStyle = d === layers - 1 ? '#70e4ff' : '#0088ff';
+          ctx.shadowColor = '#0099ff';
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.arc(x, y, 4.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.shadowBlur = 0;
+      ctx.restore();
+
+      // 4. TURBINE GEAR RING
+      ctx.save();
+      ctx.rotate(-t * 0.65);
+      ctx.strokeStyle = '#44ccff';
+      ctx.shadowColor = '#00aaff';
+      ctx.shadowBlur = 20;
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 224, 0, Math.PI * 2);
+      ctx.stroke();
+
+      for (let i = 0; i < 60; i++) {
+        const a = (i / 60) * Math.PI * 2;
+        ctx.strokeStyle = i % 2 === 0 ? '#dff8ff' : '#00aaff';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * 202, Math.sin(a) * 202);
+        ctx.lineTo(Math.cos(a + 0.045) * 220, Math.sin(a + 0.045) * 220);
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+      ctx.restore();
+
+      // 5. INNER NEON RING
+      ctx.save();
+      ctx.rotate(t * 0.5);
+      ctx.strokeStyle = '#88eeff';
+      ctx.shadowColor = '#00ccff';
+      ctx.shadowBlur = 24;
+      ctx.lineWidth = 5.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 186, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = aiMode === 'thinking' ? '#ffcc00' : '#f09000';
+      ctx.lineWidth = 14;
+      ctx.beginPath();
+      ctx.arc(0, 0, 158, -2.75, -1.65);
+      ctx.stroke();
+      ctx.restore();
+
+      // 6. TEAL CENTER MEDALLION
+      const corePulse = aiMode === 'speaking' ? Math.sin(t * 18) * 6 : 0;
+      const coreRadius = 112 + corePulse;
+
+      ctx.strokeStyle = '#00f5d4';
+      ctx.lineWidth = 3.8;
+      ctx.shadowColor = '#00f5d4';
+      ctx.shadowBlur = 28;
+      ctx.beginPath();
+      ctx.arc(0, 0, coreRadius + 9, 0, Math.PI * 2);
+      ctx.stroke();
+
+      const coreGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, coreRadius);
+      if (aiMode === 'thinking') {
+        coreGrad.addColorStop(0, '#ffe680');
+        coreGrad.addColorStop(1, '#cc7a00');
+      } else {
+        coreGrad.addColorStop(0, '#44ffef');
+        coreGrad.addColorStop(0.75, '#00d6c2');
+        coreGrad.addColorStop(1, '#008f82');
+      }
+      ctx.fillStyle = coreGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, coreRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = '#022629';
+      ctx.textAlign = 'center';
+      ctx.font = '900 34px "Impact", "Arial Black", "SF Mono", sans-serif';
+      ctx.fillText('J.A.R.V.I.S', 0, -4);
+
+      ctx.font = '800 13px "SF Mono", monospace';
+      ctx.fillStyle = 'rgba(2, 38, 42, 0.9)';
+      ctx.fillText(aiMode === 'speaking' ? 'VOCAL ACTIVE' : (aiMode === 'thinking' ? 'PROCESSING' : 'B E T A  2 . 0'), 0, 19);
+
+      ctx.font = '900 17px "SF Mono", monospace';
+      ctx.fillStyle = '#011c1f';
+      ctx.fillText('M A R K  I I', 0, 42);
+
+      ctx.restore();
+
+      requestAnimationFrame(drawMark2HUD);
+    }
+    drawMark2HUD();
+
+    // --- VOICE & COMMAND LOGIC ---
+    function addLog(who, text) {
+      const div = document.createElement('div');
+      div.className = who === 'you' ? 'msg-user' : 'msg-jarvis';
+      div.textContent = (who === 'you' ? 'You: ' : 'JARVIS: ') + text;
+      logStream.appendChild(div);
+      logStream.scrollTop = logStream.scrollHeight;
+    }
+
+    function speak(text) {
+      vocalOut.textContent = '"' + text + '"';
+      addLog('jarvis', text);
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices();
+      const daniel = voices.find(v => v.name.includes('Daniel')) || voices.find(v => v.lang.startsWith('en'));
+      if (daniel) utter.voice = daniel;
+      utter.rate = 1.02;
+      utter.onstart = () => { aiMode = 'speaking'; };
+      utter.onend = () => { aiMode = 'standby'; };
+      window.speechSynthesis.speak(utter);
+    }
+
+    async function tryMacBridge(command) {
+      try {
+        const res = await fetch('http://127.0.0.1:5050/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: command })
+        });
+        if (res.ok) {
+          bridgeStatus.textContent = 'Connected (Mac Apps Ready)';
+          bridgeStatus.style.color = '#00ffaa';
+          return await res.json();
+        }
+      } catch (e) {
+        bridgeStatus.textContent = 'Browser Mode';
+        bridgeStatus.style.color = '#ff9900';
+      }
+      return null;
+    }
+
+    async function executeCommand(raw) {
+      const cmd = raw.trim();
+      const lower = cmd.toLowerCase();
+      addLog('you', cmd);
+
+      if (lower === 'clear' || lower === 'cls') {
+        logStream.innerHTML = '';
+        vocalOut.textContent = '"Terminal log cleared, Deerendaran."';
+        return;
+      }
+
+      if (['quit', 'exit', 'bye', 'stop'].includes(lower)) {
+        window.speechSynthesis.cancel();
+        speak('Entering standby mode. Goodbye, ' + jarvisMemory.owner + '!');
+        return;
+      }
+
+      aiMode = 'thinking';
+
+      if (lower.startsWith('remember ')) {
+        const fact = cmd.slice(9).trim();
+        if (lower.includes('owner is ')) {
+          const newOwner = cmd.split(/owner is /i)[1].trim();
+          jarvisMemory.owner = newOwner;
+          document.getElementById('ownerName').textContent = newOwner;
+        }
+        localStorage.setItem('jarvis_memory', JSON.stringify(jarvisMemory));
+        speak('Memory updated. I will remember that ' + fact + '.');
+        return;
+      }
+
+      if (lower.includes('owner') || lower.includes('who created you') || lower.includes('my name')) {
+        speak('My owner and creator is ' + jarvisMemory.owner + '.');
+        return;
+      }
+
+      if (lower.includes('who are you') || lower.includes('who r u')) {
+        speak('I am JARVIS Mark 2, a personal cybernetic AI assistant built for ' + jarvisMemory.owner + '.');
+        return;
+      }
+
+      if (lower.includes('time')) {
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        speak('The time is ' + timeStr + '.');
+        return;
+      }
+
+      if (lower.includes('tomorrow')) {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        speak('Tomorrow date is ' + d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) + '.');
+        return;
+      }
+
+      if (lower.includes('date')) {
+        const d = new Date();
+        speak('Today date is ' + d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) + '.');
+        return;
+      }
+
+      if (lower.includes('weather')) {
+        speak('Current weather in Coimbatore is ' + document.getElementById('wxDesc').textContent + ' and ' + document.getElementById('wxTemp').textContent + '.');
+        return;
+      }
+
+      if (lower.includes('in youtube') || lower.includes('on youtube') || lower.includes('in yt')) {
+        const query = lower.replace(/^open\s+/i, '').replace(/^search\s+/i, '').replace(/\s+(in|on)\s+(youtube|yt)$/i, '').trim();
+        speak('Searching YouTube for ' + query + '.');
+        window.open('https://www.youtube.com/results?search_query=' + encodeURIComponent(query), '_blank');
+        return;
+      }
+
+      if (lower.startsWith('open ')) {
+        const target = lower.replace('open ', '').trim();
+        const shortcuts = {
+          'yt': 'https://www.youtube.com',
+          'youtube': 'https://www.youtube.com',
+          'google': 'https://www.google.com',
+          'gmail': 'https://mail.google.com',
+          'github': 'https://www.github.com',
+          'instagram': 'https://www.instagram.com'
+        };
+        if (shortcuts[target]) {
+          speak('Opening ' + target + ' in a new tab.');
+          window.open(shortcuts[target], '_blank');
+          return;
+        }
+        const macRes = await tryMacBridge(cmd);
+        if (macRes && macRes.ok) {
+          speak(macRes.reply);
+          return;
+        }
+      }
+
+      const bridgeSearch = await tryMacBridge(cmd);
+      if (bridgeSearch && bridgeSearch.ok && bridgeSearch.reply) {
+        speak(bridgeSearch.reply);
+        return;
+      }
+
+      try {
+        let topic = lower;
+        ['who is ', 'what is ', 'tell me about ', 'where is '].forEach(p => {
+          if (topic.startsWith(p)) topic = topic.replace(p, '').trim();
+        });
+        const wikiRes = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(topic));
+        if (wikiRes.ok) {
+          const data = await wikiRes.json();
+          if (data.extract) {
+            speak(data.extract.split('. ').slice(0, 2).join('. ') + '.');
+            return;
+          }
+        }
+      } catch (e) {}
+
+      speak('Opening Google Search results for ' + cmd + '.');
+      window.open('https://www.google.com/search?q=' + encodeURIComponent(cmd), '_blank');
+    }
+
+    function submitInput() {
+      const v = cmdInput.value.trim();
+      if (!v) return;
+      cmdInput.value = '';
+      executeCommand(v);
+    }
+    function runCmd(c) { executeCommand(c); }
+    cmdInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitInput(); });
+
+    window.addEventListener('load', () => {
+      tryMacBridge('ping');
+      setTimeout(() => speak('All systems online, ' + jarvisMemory.owner + '. Mark 2 HUD ready.'), 400);
+    });
+  </script>
+</body>
+</html>
